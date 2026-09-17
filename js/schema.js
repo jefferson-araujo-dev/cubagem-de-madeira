@@ -14,6 +14,40 @@ export function isValidWoodType(value) {
   return WOOD_TYPES.includes(value);
 }
 
+// Único ponto de verdade sobre o que conta como um registro suportado pelo
+// contrato v1. Usado para filtrar registros legados (pré-v1) vindos do
+// Firestore ou do localStorage antes que cheguem à UI — esses registros não
+// são migrados nem apagados automaticamente, apenas ignorados pelo fluxo
+// operacional.
+export function isSupportedWoodItem(item) {
+  if (!item || typeof item !== "object") return false;
+  return (
+    item.schemaVersion === SCHEMA_VERSION &&
+    item.formulaVersion === FORMULA_VERSION &&
+    typeof item.id === "string" &&
+    item.id.length > 0 &&
+    isValidWoodType(item.woodType) &&
+    typeof item.lengthM === "number" &&
+    Number.isFinite(item.lengthM) &&
+    item.lengthM > 0 &&
+    typeof item.widthM === "number" &&
+    Number.isFinite(item.widthM) &&
+    item.widthM > 0 &&
+    typeof item.thicknessM === "number" &&
+    Number.isFinite(item.thicknessM) &&
+    item.thicknessM > 0 &&
+    typeof item.quantity === "number" &&
+    Number.isInteger(item.quantity) &&
+    item.quantity >= 1 &&
+    typeof item.grossVolumeM3 === "number" &&
+    Number.isFinite(item.grossVolumeM3) &&
+    typeof item.officialVolumeM3 === "number" &&
+    Number.isFinite(item.officialVolumeM3) &&
+    typeof item.createdAt === "number" &&
+    typeof item.updatedAt === "number"
+  );
+}
+
 // Aceita vírgula ou ponto como separador decimal, exige no máximo 2 casas
 // decimais e valor finito > 0. Retorna null se inválido (não arredonda).
 export function parseDimension(rawValue) {

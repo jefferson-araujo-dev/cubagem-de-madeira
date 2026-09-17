@@ -9,6 +9,7 @@ import {
   writeBatch,
   getDocs,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { isSupportedWoodItem } from "./schema.js";
 
 let items = [];
 let useLocalStorage = false;
@@ -45,9 +46,32 @@ function notifyDataChanged() {
   if (onDataChangedCallback) onDataChangedCallback();
 }
 
+// Filtra registros que não atendem ao contrato v1 (ex.: dados legados
+// gravados antes deste schema). Eles não são migrados nem apagados
+// automaticamente, apenas ignorados pelo fluxo operacional, para não
+// derrubar a renderização com campos ausentes/incompatíveis.
+function filterSupportedItems(rawItems, source) {
+  const supported = [];
+  let ignoredCount = 0;
+  for (const item of rawItems) {
+    if (isSupportedWoodItem(item)) {
+      supported.push(item);
+    } else {
+      ignoredCount++;
+    }
+  }
+  if (ignoredCount > 0) {
+    console.warn(
+      `[store] ${ignoredCount} registro(s) incompatível(is) com o schema v1 ignorado(s) (origem: ${source}).`,
+    );
+  }
+  return supported;
+}
+
 export function loadLocalData() {
   const data = localStorage.getItem("cubagempro_local_v1");
-  items = data ? JSON.parse(data) : [];
+  const rawItems = data ? JSON.parse(data) : [];
+  items = filterSupportedItems(rawItems, "localStorage");
   notifyDataChanged();
 }
 
@@ -68,10 +92,11 @@ export function setupRealtimeSync(userId, onError) {
   unsubscribe = onSnapshot(
     q,
     (snapshot) => {
-      items = [];
+      const rawItems = [];
       snapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() });
+        rawItems.push({ id: doc.id, ...doc.data() });
       });
+      items = filterSupportedItems(rawItems, "Firestore");
       notifyDataChanged();
     },
     (error) => {

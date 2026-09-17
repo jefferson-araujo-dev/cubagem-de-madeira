@@ -9,6 +9,7 @@ import {
   parseQuantity,
   createWoodItem,
   applyWoodItemEdit,
+  isSupportedWoodItem,
 } from "./schema.js";
 
 test("apenas as 3 opções de madeira permitidas são válidas", () => {
@@ -153,4 +154,51 @@ test("applyWoodItemEdit: nenhuma alteração efetiva preserva updatedAt", () => 
     2000,
   );
   assert.equal(edited.updatedAt, 1000);
+});
+
+test("isSupportedWoodItem: aceita um registro válido do schema v1", () => {
+  const item = createWoodItem({
+    woodType: "Prancha Ipê",
+    lengthM: 1,
+    widthM: 1,
+    thicknessM: 0.5,
+    quantity: 1,
+    now: 1000,
+  });
+  assert.ok(isSupportedWoodItem(item));
+});
+
+test("isSupportedWoodItem: rejeita registro legado sem woodType (formato pré-v1)", () => {
+  const legacy = {
+    desc: "Peroba",
+    length: 4,
+    width: 0.3,
+    thickness: 0.05,
+    qty: 10,
+    volume: 0.6,
+  };
+  assert.equal(isSupportedWoodItem(legacy), false);
+});
+
+test("isSupportedWoodItem: rejeita registro com schemaVersion/formulaVersion incompatível", () => {
+  const item = createWoodItem({
+    woodType: "Prancha Ipê",
+    lengthM: 1,
+    widthM: 1,
+    thicknessM: 0.5,
+    quantity: 1,
+    now: 1000,
+  });
+  assert.equal(isSupportedWoodItem({ ...item, schemaVersion: 0 }), false);
+  assert.equal(
+    isSupportedWoodItem({ ...item, formulaVersion: "old-formula" }),
+    false,
+  );
+  assert.equal(isSupportedWoodItem({ ...item, woodType: "Pinus" }), false);
+});
+
+test("isSupportedWoodItem: rejeita null/undefined/valores não-objeto", () => {
+  assert.equal(isSupportedWoodItem(null), false);
+  assert.equal(isSupportedWoodItem(undefined), false);
+  assert.equal(isSupportedWoodItem("string"), false);
 });
