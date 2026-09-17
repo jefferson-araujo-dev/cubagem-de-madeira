@@ -28,7 +28,17 @@ import {
   clearAllItems,
 } from "./js/store.js";
 import { initFirebaseApp } from "./js/firebase.js";
-import { calculateRectangularVolume } from "./js/volume.js";
+import {
+  isValidWoodType,
+  parseDimension,
+  parseQuantity,
+  formatDecimalBR,
+  formatGrossVolumeBR,
+  formatDateBR,
+  createWoodItem,
+  applyWoodItemEdit,
+  sumOfficialVolume,
+} from "./js/schema.js";
 
 let isEditing = false;
 let isRegistering = false; // Estado do modal (Login vs Registo)
@@ -121,43 +131,55 @@ function initLocalStorage() {
 
 // --- Standard Logic ---
 async function handleSubmit() {
-  const desc = document.getElementById("desc").value;
-  const length = parseFloat(document.getElementById("length").value);
-  const width = parseFloat(document.getElementById("width").value);
-  const thickness = parseFloat(document.getElementById("thickness").value);
-  const qty = parseInt(document.getElementById("qty").value);
+  const woodType = document.getElementById("woodType").value;
+  const lengthM = parseDimension(document.getElementById("length").value);
+  const widthM = parseDimension(document.getElementById("width").value);
+  const thicknessM = parseDimension(document.getElementById("thickness").value);
+  const quantity = parseQuantity(document.getElementById("qty").value);
   const editId = document.getElementById("editId").value;
 
-  if (
-    !desc ||
-    isNaN(length) ||
-    isNaN(width) ||
-    isNaN(thickness) ||
-    isNaN(qty)
-  ) {
-    showToast("Preencha todos os campos.", "error");
+  if (!isValidWoodType(woodType)) {
+    showToast("Selecione uma madeira válida.", "error");
+    return;
+  }
+  if (lengthM === null || widthM === null || thicknessM === null) {
+    showToast(
+      "Dimensões inválidas. Use números maiores que zero com no máximo 2 casas decimais.",
+      "error",
+    );
+    return;
+  }
+  if (quantity === null) {
+    showToast("Quantidade inválida. Use um número inteiro maior ou igual a 1.", "error");
     return;
   }
 
-  const volume = calculateRectangularVolume(length, width, thickness, qty);
-  const timestamp = Date.now();
-  const itemData = {
-    desc,
-    length,
-    width,
-    thickness,
-    qty,
-    volume,
-    updatedAt: timestamp,
-  };
-
   try {
     if (isEditing && editId) {
-      await updateItem(editId, itemData);
+      const items = getItems();
+      const existing = items.find((i) => i.id == editId);
+      if (!existing) {
+        showToast("Registro não encontrado.", "error");
+        return;
+      }
+      const updated = applyWoodItemEdit(existing, {
+        woodType,
+        lengthM,
+        widthM,
+        thicknessM,
+        quantity,
+      });
+      await updateItem(editId, updated);
       showToast(`Atualizado (${isLocalMode() ? "Local" : "Cloud"})`, "success");
       cancelEdit();
     } else {
-      itemData.createdAt = timestamp;
+      const itemData = createWoodItem({
+        woodType,
+        lengthM,
+        widthM,
+        thicknessM,
+        quantity,
+      });
       await addItem(itemData);
       showToast(`Salvo (${isLocalMode() ? "Local" : "Cloud"})`, "success");
       resetForm(false);
@@ -173,7 +195,12 @@ async function handleSubmit() {
 }
 
 async function deleteItem(id) {
-  if (!confirm("Excluir item?")) return;
+  if (
+    !confirm(
+      "Excluir este registro definitivamente? Esta ação não poderá ser desfeita.",
+    )
+  )
+    return;
   try {
     await deleteItemFromStore(id);
   } catch (e) {
@@ -183,7 +210,12 @@ async function deleteItem(id) {
 }
 
 async function clearAll() {
-  if (!confirm("Apagar TODOS os dados?")) return;
+  if (
+    !confirm(
+      "Apagar TODOS os dados definitivamente? Esta ação não poderá ser desfeita.",
+    )
+  )
+    return;
   try {
     await clearAllItems();
     if (!isLocalMode()) showToast("Limpo (Cloud)", "success");
@@ -206,11 +238,11 @@ function editItem(id) {
   btn.classList.remove("bg-wood-600", "hover:bg-wood-700");
   btn.classList.add("bg-blue-600", "hover:bg-blue-700");
   document.getElementById("cancelEditBtn").classList.remove("hidden");
-  document.getElementById("desc").value = item.desc;
-  document.getElementById("length").value = item.length.toFixed(2);
-  document.getElementById("width").value = item.width.toFixed(2);
-  document.getElementById("thickness").value = item.thickness.toFixed(2);
-  document.getElementById("qty").value = item.qty;
+  document.getElementById("woodType").value = item.woodType;
+  document.getElementById("length").value = formatDecimalBR(item.lengthM);
+  document.getElementById("width").value = formatDecimalBR(item.widthM);
+  document.getElementById("thickness").value = formatDecimalBR(item.thicknessM);
+  document.getElementById("qty").value = item.quantity;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -231,7 +263,7 @@ function resetForm(fullClear = true) {
   document.getElementById("width").value = "";
   document.getElementById("thickness").value = "";
   document.getElementById("qty").value = "1";
-  if (fullClear) document.getElementById("desc").value = "Prancha de Madeira";
+  if (fullClear) document.getElementById("woodType").value = "";
   document.getElementById("length").focus();
 }
 
@@ -242,12 +274,13 @@ function renderTable() {
   const filterText = searchInput ? searchInput.value.toLowerCase() : "";
   tbody.innerHTML = "";
 
-  let totalVol = 0;
   let totalQtd = 0;
   const filteredItems = items.filter((item) =>
-    item.desc.toLowerCase().includes(filterText),
+    item.woodType.toLowerCase().includes(filterText),
   );
   filteredItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+  const totalVol = sumOfficialVolume(filteredItems);
 
   if (filteredItems.length === 0) {
     const iconSvg = isLocalMode() ? ICONS.emptyLocal : ICONS.emptyCloud;
@@ -256,24 +289,32 @@ function renderTable() {
     // Otimização de Performance: Concatenação de string em vez de múltiplos createElement
     let htmlRows = "";
     filteredItems.forEach((item) => {
-      totalVol += item.volume;
-      totalQtd += item.qty;
+      totalQtd += item.quantity;
       htmlRows += `
               <tr class="grid grid-cols-2 gap-2 sm:table-row hover:bg-stone-50 transition group p-4 sm:p-0 border-b border-stone-100 sm:border-none relative">
                   <td class="col-span-2 sm:col-auto px-1 sm:px-6 py-1 sm:py-4 text-stone-900 font-bold sm:font-medium text-base sm:text-sm block sm:table-cell break-words">
-                      ${item.desc}
+                      ${item.woodType}
                   </td>
                   <td class="col-span-2 sm:col-auto px-1 sm:px-3 py-0 sm:py-4 text-left sm:text-center text-stone-500 font-mono text-xs flex justify-between sm:table-cell items-center">
                       <span class="sm:hidden font-semibold text-stone-400 uppercase tracking-wide text-[10px]">Dimensões</span>
-                      <span>${item.length.toFixed(2)} x ${item.width.toFixed(2)} x ${item.thickness.toFixed(2)}</span>
+                      <span>${formatDecimalBR(item.lengthM)} x ${formatDecimalBR(item.widthM)} x ${formatDecimalBR(item.thicknessM)}</span>
                   </td>
                   <td class="col-span-1 sm:col-auto px-1 sm:px-3 py-1 sm:py-4 text-left sm:text-center text-stone-700 font-bold flex flex-col sm:table-cell">
                       <span class="sm:hidden font-semibold text-stone-400 uppercase tracking-wide text-[10px]">Qtd</span>
-                      <span class="mt-0.5 sm:mt-0">${item.qty}</span>
+                      <span class="mt-0.5 sm:mt-0">${item.quantity}</span>
                   </td>
                   <td class="col-span-1 sm:col-auto px-1 sm:px-6 py-1 sm:py-4 text-right text-stone-900 font-mono font-bold flex flex-col sm:table-cell">
                       <span class="sm:hidden font-semibold text-stone-400 uppercase tracking-wide text-[10px]">Volume</span>
-                      <span class="mt-0.5 sm:mt-0 text-lg sm:text-sm text-wood-700 sm:text-stone-900">${item.volume.toFixed(2)}</span>
+                      <span class="mt-0.5 sm:mt-0 text-lg sm:text-sm text-wood-700 sm:text-stone-900">${formatDecimalBR(item.officialVolumeM3)}</span>
+                  </td>
+                  <td class="hidden print:table-cell px-3 py-4 text-right font-mono text-stone-500 text-xs">
+                      ${formatGrossVolumeBR(item.grossVolumeM3)}
+                  </td>
+                  <td class="hidden print:table-cell px-3 py-4 text-center text-stone-500 text-xs">
+                      ${formatDateBR(item.createdAt)}
+                  </td>
+                  <td class="hidden print:table-cell px-3 py-4 text-center text-stone-500 text-xs">
+                      ${formatDateBR(item.updatedAt)}
                   </td>
                   <td class="col-span-2 sm:col-auto pt-3 pb-1 sm:px-6 sm:py-4 text-center no-print border-t border-stone-100 sm:border-none mt-2 sm:mt-0 block sm:table-cell">
                       <div class="flex justify-end sm:justify-center gap-4 sm:gap-2 opacity-100 sm:opacity-50 group-hover:opacity-100 transition">
@@ -285,9 +326,9 @@ function renderTable() {
     });
     tbody.innerHTML = htmlRows;
   }
-  const formattedTotalVol = totalVol.toFixed(2) + " m³";
+  const formattedTotalVol = formatDecimalBR(totalVol) + " m³";
   document.getElementById("navTotalVolume").textContent = formattedTotalVol;
-  document.getElementById("statVolume").textContent = totalVol.toFixed(2);
+  document.getElementById("statVolume").textContent = formatDecimalBR(totalVol);
   document.getElementById("statCount").textContent = totalQtd;
   document.getElementById("tableTotalQtd").textContent = totalQtd;
   document.getElementById("tableTotalVol").textContent = formattedTotalVol;
@@ -295,16 +336,6 @@ function renderTable() {
 
 function filterTable() {
   renderTable();
-}
-
-function formatDimension(input) {
-  let value = input.value.replace(/\D/g, "");
-  if (value === "") {
-    input.value = "";
-    return;
-  }
-  let formattedValue = (parseInt(value) / 100).toFixed(2);
-  input.value = formattedValue;
 }
 
 function adjustQty(change) {
@@ -334,20 +365,27 @@ function exportTableToExcel(filename) {
   setTimeout(() => {
     try {
       const data = items.map((item) => ({
-        Descrição: item.desc,
-        "Comp. (m)": Number(item.length.toFixed(2)),
-        "Larg. (m)": Number(item.width.toFixed(2)),
-        "Esp. (m)": Number(item.thickness.toFixed(2)),
-        "Volume (m³)": Number(item.volume.toFixed(2)),
-        Qtd: item.qty,
+        Madeira: item.woodType,
+        "Comprimento (m)": Number(item.lengthM.toFixed(2)),
+        "Largura (m)": Number(item.widthM.toFixed(2)),
+        "Espessura (m)": Number(item.thicknessM.toFixed(2)),
+        Quantidade: item.quantity,
+        // Volume Bruto preserva o valor exato calculado (pode ter até 6
+        // casas decimais, já que as 3 dimensões têm no máximo 2 casas cada);
+        // a formatação visual de até 6 casas é aplicada via máscara da
+        // célula (cell.z) abaixo, sem arredondar o valor armazenado.
+        "Volume Bruto (m³)": item.grossVolumeM3,
+        "Volume Oficial (m³)": Number(item.officialVolumeM3.toFixed(2)),
+        "Data de Criação": formatDateBR(item.createdAt),
+        "Última Atualização": formatDateBR(item.updatedAt),
       }));
 
-      const totalVol = items.reduce((acc, curr) => acc + curr.volume, 0);
-      const totalQtd = items.reduce((acc, curr) => acc + curr.qty, 0);
+      const totalVol = sumOfficialVolume(items);
+      const totalQtd = items.reduce((acc, curr) => acc + curr.quantity, 0);
       data.push({
-        Descrição: "TOTAL",
-        "Volume (m³)": Number(totalVol.toFixed(2)),
-        Qtd: totalQtd,
+        Madeira: "TOTAL",
+        Quantidade: totalQtd,
+        "Volume Oficial (m³)": Number(totalVol.toFixed(2)),
       });
 
       const worksheet = XLSX.utils.json_to_sheet(data);
@@ -390,9 +428,17 @@ function exportTableToExcel(filename) {
           cell.s = { font: { bold: true, sz: 12 } };
         }
 
-        // Aplica a máscara '0.00' apenas se for número e estiver nas colunas B, C, D ou E
-        if (cell.t === "n" && /^[B-E]/.test(cellAddress)) {
+        // Comprimento, Largura, Espessura e Volume Oficial: exibição fixa em
+        // 2 casas decimais (o valor já é exato nessas colunas).
+        if (cell.t === "n" && /^[BCDG]/.test(cellAddress)) {
           cell.z = "0.00";
+        }
+        // Volume Bruto: o valor armazenado não é arredondado (pode ter até
+        // 6 casas, já que vem de 3 dimensões com no máximo 2 casas cada);
+        // a máscara só controla a exibição, exibindo até 6 casas sem zeros
+        // à direita desnecessários, sem alterar o valor da célula.
+        if (cell.t === "n" && /^F/.test(cellAddress)) {
+          cell.z = "0.######";
         }
       }
 
@@ -482,11 +528,6 @@ function setupEventListeners() {
       e.preventDefault(); // Impede o comportamento padrão do Enter
       handleSubmit();
     }
-  });
-
-  // Dimension Inputs Events (Substitui o oninput)
-  document.querySelectorAll(".dimension-input").forEach((input) => {
-    input.addEventListener("input", (e) => formatDimension(e.target));
   });
 
   // Toolbar Events

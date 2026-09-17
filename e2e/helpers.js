@@ -15,12 +15,16 @@ export async function enterLocalMode(page) {
   await modal.waitFor({ state: "hidden" });
 }
 
-// Os campos de dimensão (length/width/thickness) reformatam a entrada:
-// os dígitos digitados são interpretados como centésimos (ex.: "150" -> "1.50").
-export async function fillWoodForm(page, { length, width, thickness, qty }) {
-  await page.locator("#length").fill(String(Math.round(length * 100)));
-  await page.locator("#width").fill(String(Math.round(width * 100)));
-  await page.locator("#thickness").fill(String(Math.round(thickness * 100)));
+// Os campos de dimensão (length/width/thickness) aceitam o valor digitado
+// diretamente, com vírgula ou ponto como separador decimal (contrato v1).
+export async function fillWoodForm(
+  page,
+  { woodType = "Prancha Ipê", length, width, thickness, qty },
+) {
+  await page.locator("#woodType").selectOption(woodType);
+  await page.locator("#length").fill(String(length).replace(".", ","));
+  await page.locator("#width").fill(String(width).replace(".", ","));
+  await page.locator("#thickness").fill(String(thickness).replace(".", ","));
   await page.locator("#qty").fill(String(qty));
 }
 

@@ -12,11 +12,17 @@ test.describe("Persistência local entre reloads", () => {
   }) => {
     await gotoFresh(page);
     await enterLocalMode(page);
-    await fillWoodForm(page, { length: 1, width: 1, thickness: 0.5, qty: 2 });
+    await fillWoodForm(page, {
+      woodType: "Prancha Ipê",
+      length: 1,
+      width: 1,
+      thickness: 0.5,
+      qty: 2,
+    });
     await submitWoodForm(page);
 
     await expect(page.locator("#tableBody tr").first()).toContainText(
-      "Prancha de Madeira",
+      "Prancha Ipê",
     );
 
     await page.reload();
@@ -26,8 +32,8 @@ test.describe("Persistência local entre reloads", () => {
     await enterLocalMode(page);
 
     const row = page.locator("#tableBody tr").first();
-    await expect(row).toContainText("Prancha de Madeira");
-    await expect(row.locator("td").nth(3)).toContainText("1.00");
+    await expect(row).toContainText("Prancha Ipê");
+    await expect(row.locator("td").nth(3)).toContainText("1,00");
     await expect(page.locator("#statCount")).toHaveText("2");
   });
 });

@@ -1,7 +1,7 @@
 import {
   collection,
   doc,
-  addDoc,
+  setDoc,
   deleteDoc,
   updateDoc,
   onSnapshot,
@@ -89,13 +89,12 @@ export function stopRealtimeSync() {
 
 export async function addItem(itemData) {
   if (useLocalStorage) {
-    itemData.id = Date.now().toString();
     items.push(itemData);
     saveLocal();
   } else {
     const colPath = ["users", currentUser.uid, "cubagem_items"];
-    const colRef = collection(db, ...colPath);
-    await addDoc(colRef, itemData);
+    const docRef = doc(db, ...colPath, itemData.id);
+    await setDoc(docRef, itemData);
   }
 }
 

@@ -315,7 +315,7 @@
               <div>
                 <label
                   class="block text-xs font-semibold text-stone-500 uppercase mb-1"
-                  >Descrição do Material</label
+                  >Madeira</label
                 >
                 <div class="relative">
                   <span
@@ -333,14 +333,18 @@
                         d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
                       ></path></svg
                   ></span>
-                  <input
-                    type="text"
-                    id="desc"
-                    class="pl-9 block w-full rounded-lg border-stone-200 bg-stone-100 text-stone-500 border sm:text-sm p-2.5 cursor-not-allowed select-none"
-                    value="Prancha de Madeira"
-                    readonly
+                  <select
+                    id="woodType"
+                    class="pl-9 block w-full rounded-lg border-stone-200 bg-stone-50 border focus:bg-white focus:border-wood-500 focus:ring-wood-500 sm:text-sm p-2.5"
                     required
-                  />
+                  >
+                    <option value="" disabled selected>
+                      Selecione a madeira
+                    </option>
+                    <option value="Prancha Freijó">Prancha Freijó</option>
+                    <option value="Prancha Ipê">Prancha Ipê</option>
+                    <option value="Prancha Cedrinho">Prancha Cedrinho</option>
+                  </select>
                 </div>
               </div>
               <div class="grid grid-cols-2 gap-4">
@@ -351,10 +355,10 @@
                   >
                   <input
                     type="text"
-                    inputmode="numeric"
+                    inputmode="decimal"
                     id="length"
-                    placeholder="0.00"
-                    class="dimension-input block w-full rounded-lg border-stone-200 bg-stone-50 border focus:bg-white focus:border-wood-500 focus:ring-wood-500 sm:text-sm p-2.5 font-mono"
+                    placeholder="0,00"
+                    class="block w-full rounded-lg border-stone-200 bg-stone-50 border focus:bg-white focus:border-wood-500 focus:ring-wood-500 sm:text-sm p-2.5 font-mono"
                     required
                   />
                 </div>
@@ -365,10 +369,10 @@
                   >
                   <input
                     type="text"
-                    inputmode="numeric"
+                    inputmode="decimal"
                     id="width"
-                    placeholder="0.00"
-                    class="dimension-input block w-full rounded-lg border-stone-200 bg-stone-50 border focus:bg-white focus:border-wood-500 focus:ring-wood-500 sm:text-sm p-2.5 font-mono"
+                    placeholder="0,00"
+                    class="block w-full rounded-lg border-stone-200 bg-stone-50 border focus:bg-white focus:border-wood-500 focus:ring-wood-500 sm:text-sm p-2.5 font-mono"
                     required
                   />
                 </div>
@@ -381,10 +385,10 @@
                   >
                   <input
                     type="text"
-                    inputmode="numeric"
+                    inputmode="decimal"
                     id="thickness"
-                    placeholder="0.00"
-                    class="dimension-input block w-full rounded-lg border-stone-200 bg-stone-50 border focus:bg-white focus:border-wood-500 focus:ring-wood-500 sm:text-sm p-2.5 font-mono"
+                    placeholder="0,00"
+                    class="block w-full rounded-lg border-stone-200 bg-stone-50 border focus:bg-white focus:border-wood-500 focus:ring-wood-500 sm:text-sm p-2.5 font-mono"
                     required
                   />
                 </div>
@@ -408,6 +412,7 @@
                       id="qty"
                       value="1"
                       min="1"
+                      step="1"
                       class="w-full text-center bg-transparent border-none focus:ring-0 p-0 font-semibold text-stone-700"
                       required
                     />
@@ -513,9 +518,8 @@
             </div>
           </div>
           <div class="hidden print-only mb-6">
-            <h1 class="text-2xl font-bold mb-2">
-              Relatório de Cubagem de Madeira
-            </h1>
+            <h1 class="text-2xl font-bold">CubagemPro</h1>
+            <p class="text-lg font-semibold mb-2">Relatório de Cubagem</p>
             <p class="text-sm text-gray-500" id="printDate"></p>
           </div>
           <div
@@ -531,7 +535,7 @@
                       scope="col"
                       class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase tracking-wider"
                     >
-                      Descrição
+                      Madeira
                     </th>
                     <th
                       scope="col"
@@ -550,6 +554,24 @@
                       class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase tracking-wider"
                     >
                       Volume (m³)
+                    </th>
+                    <th
+                      scope="col"
+                      class="hidden print:table-cell px-3 py-3 text-right text-xs font-bold text-stone-500 uppercase tracking-wider"
+                    >
+                      Volume Bruto (m³)
+                    </th>
+                    <th
+                      scope="col"
+                      class="hidden print:table-cell px-3 py-3 text-center text-xs font-bold text-stone-500 uppercase tracking-wider"
+                    >
+                      Criado em
+                    </th>
+                    <th
+                      scope="col"
+                      class="hidden print:table-cell px-3 py-3 text-center text-xs font-bold text-stone-500 uppercase tracking-wider"
+                    >
+                      Última Atualização
                     </th>
                     <th
                       scope="col"
@@ -598,6 +620,9 @@
                       >
                       <span id="tableTotalVol">0.00 m³</span>
                     </td>
+                    <td class="hidden print:table-cell"></td>
+                    <td class="hidden print:table-cell"></td>
+                    <td class="hidden print:table-cell"></td>
                     <td class="hidden sm:table-cell no-print"></td>
                   </tr>
                 </tfoot>
