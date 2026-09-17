@@ -28,6 +28,7 @@ import {
   clearAllItems,
 } from "./js/store.js";
 import { initFirebaseApp } from "./js/firebase.js";
+import { calculateRectangularVolume } from "./js/volume.js";
 
 let isEditing = false;
 let isRegistering = false; // Estado do modal (Login vs Registo)
@@ -138,8 +139,7 @@ async function handleSubmit() {
     return;
   }
 
-  // Corrige bug de precisão do JS limitando as casas decimais antes do cálculo final
-  const volume = Number((length * width * thickness * qty).toFixed(4));
+  const volume = calculateRectangularVolume(length, width, thickness, qty);
   const timestamp = Date.now();
   const itemData = {
     desc,
