@@ -1,2 +1,6 @@
 .vercel
 node_modules
+
+*.log
+dataconnect/.dataconnect/pgliteData/
+.firebase/logs/
