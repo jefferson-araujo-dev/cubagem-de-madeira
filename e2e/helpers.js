@@ -15,16 +15,25 @@ export async function enterLocalMode(page) {
   await modal.waitFor({ state: "hidden" });
 }
 
-// Os campos de dimensão (length/width/thickness) aceitam o valor digitado
-// diretamente, com vírgula ou ponto como separador decimal (contrato v1).
+// Os campos de dimensão (length/width/thickness) usam máscara decimal
+// automática (contrato v1 + Gate 12): o campo só aceita algarismos e
+// posiciona os 2 últimos como casas decimais (ex.: "462" -> "4,62"). Por
+// isso o valor em metros recebido aqui é convertido para a sequência de
+// algarismos equivalente (metros * 100) antes de preencher o campo, para
+// que o significado do argumento (ex.: length: 1 -> 1 metro) permaneça
+// o mesmo de antes da máscara.
+function toMaskedDigits(valueInMeters) {
+  return String(Math.round(Number(valueInMeters) * 100));
+}
+
 export async function fillWoodForm(
   page,
   { woodType = "Prancha Ipê", length, width, thickness, qty },
 ) {
   await page.locator("#woodType").selectOption(woodType);
-  await page.locator("#length").fill(String(length).replace(".", ","));
-  await page.locator("#width").fill(String(width).replace(".", ","));
-  await page.locator("#thickness").fill(String(thickness).replace(".", ","));
+  await page.locator("#length").fill(toMaskedDigits(length));
+  await page.locator("#width").fill(toMaskedDigits(width));
+  await page.locator("#thickness").fill(toMaskedDigits(thickness));
   await page.locator("#qty").fill(String(qty));
 }
 

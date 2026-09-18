@@ -71,6 +71,25 @@ export function parseQuantity(rawValue) {
   return value;
 }
 
+// Máscara de entrada dos campos de dimensão (comprimento/largura/espessura):
+// o usuário digita somente algarismos e os 2 últimos são posicionados como
+// casas decimais automaticamente (ex.: "462" -> "4,62"). Sanitiza qualquer
+// caractere não numérico (inclusive sinal negativo, vírgula ou ponto) antes
+// de reformatar, então a entrada nunca produz um valor negativo nem mais de
+// 2 casas decimais. Se os algarismos restantes forem todos zero (ou não
+// houver nenhum), retorna vazio em vez de "0,00", para permitir apagar o
+// campo por completo e preservar o required/validação de zero inválido.
+export function formatDimensionInput(rawValue) {
+  if (rawValue === null || rawValue === undefined) return "";
+  const digits = String(rawValue).replace(/\D/g, "");
+  if (digits === "" || /^0+$/.test(digits)) return "";
+  const padded = digits.length === 1 ? `0${digits}` : digits;
+  const intPart = padded.slice(0, -2);
+  const decPart = padded.slice(-2);
+  const intFormatted = String(Number(intPart || "0"));
+  return `${intFormatted},${decPart}`;
+}
+
 export function formatDecimalBR(valueM) {
   return valueM.toFixed(2).replace(".", ",");
 }

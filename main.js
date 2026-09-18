@@ -33,6 +33,7 @@ import {
   parseDimension,
   parseQuantity,
   formatDecimalBR,
+  formatDimensionInput,
   formatGrossVolumeBR,
   formatDateBR,
   createWoodItem,
@@ -508,6 +509,16 @@ function setupEventListeners() {
   document
     .getElementById("qtyPlusBtn")
     .addEventListener("click", () => adjustQty(1));
+
+  // Máscara decimal automática: o usuário digita só algarismos e os 2
+  // últimos são posicionados como casas decimais (ex.: 462 -> 4,62).
+  ["length", "width", "thickness"].forEach((id) => {
+    const input = document.getElementById(id);
+    input.addEventListener("input", () => {
+      input.value = formatDimensionInput(input.value);
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
+  });
 
   // Navegação com a tecla Enter entre os campos de dimensão
   const formFlow = ["length", "width", "thickness", "qty"];

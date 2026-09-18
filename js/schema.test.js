@@ -7,6 +7,7 @@ import {
   isValidWoodType,
   parseDimension,
   parseQuantity,
+  formatDimensionInput,
   createWoodItem,
   applyWoodItemEdit,
   isSupportedWoodItem,
@@ -53,6 +54,45 @@ test("parseDimension: rejeita vazio/inválido", () => {
   assert.equal(parseDimension(""), null);
   assert.equal(parseDimension("abc"), null);
   assert.equal(parseDimension(null), null);
+});
+
+test("formatDimensionInput: posiciona os 2 últimos algarismos como casas decimais", () => {
+  assert.equal(formatDimensionInput(""), "");
+  assert.equal(formatDimensionInput("1"), "0,01");
+  assert.equal(formatDimensionInput("8"), "0,08");
+  assert.equal(formatDimensionInput("32"), "0,32");
+  assert.equal(formatDimensionInput("100"), "1,00");
+  assert.equal(formatDimensionInput("400"), "4,00");
+  assert.equal(formatDimensionInput("462"), "4,62");
+  assert.equal(formatDimensionInput("1250"), "12,50");
+});
+
+test("formatDimensionInput: sanitiza vírgula, ponto e sinal negativo, considerando só os algarismos", () => {
+  assert.equal(formatDimensionInput("4,62"), "4,62");
+  assert.equal(formatDimensionInput("4.62"), "4,62");
+  assert.equal(formatDimensionInput("-462"), "4,62");
+  assert.equal(formatDimensionInput("-1"), "0,01");
+});
+
+test("formatDimensionInput: null/undefined e algarismos todos zero resultam em vazio", () => {
+  assert.equal(formatDimensionInput(null), "");
+  assert.equal(formatDimensionInput(undefined), "");
+  assert.equal(formatDimensionInput("0"), "");
+  assert.equal(formatDimensionInput("00"), "");
+});
+
+test("formatDimensionInput: simula digitação e Backspace sequenciais (4,62 -> vazio)", () => {
+  // Digitação: 4 -> 46 -> 462
+  assert.equal(formatDimensionInput("4"), "0,04");
+  assert.equal(formatDimensionInput("46"), "0,46");
+  assert.equal(formatDimensionInput("462"), "4,62");
+
+  // Backspace a partir de "4,62": o handler de input recebe o valor do campo
+  // já com o último caractere visível removido, então recalcula a partir
+  // dos algarismos restantes.
+  assert.equal(formatDimensionInput("4,6"), "0,46"); // removeu o "2"
+  assert.equal(formatDimensionInput("0,4"), "0,04"); // removeu o "6"
+  assert.equal(formatDimensionInput("0,0"), ""); // removeu o "4": só sobra zero -> vazio
 });
 
 test("parseQuantity: aceita inteiros >= 1", () => {
