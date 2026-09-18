@@ -5,6 +5,10 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  // pwa-offline.spec.js exige o build de produção servido por `vite preview`
+  // (o Service Worker não é gerado pelo `vite dev`); roda apenas via
+  // playwright.pwa.config.js / `npm run test:pwa`.
+  testIgnore: /pwa-offline\.spec\.js/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
